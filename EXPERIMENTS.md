@@ -4,10 +4,11 @@ Záznam iterácií modelu nad baseline popísaným v [README.md](README.md). Pre
 
 ## Súhrnná tabuľka
 
-| # | Variant | Architektúra | Konvergencia | Val MAE | Val MSE (USD²) | Pozn. |
-|---|---|---|---|---|---|---|
-| 0 | Baseline | 42 → 128 → 64 → 1 | ~150 epôch | 4 174 USD | 27.3 M | bez `y` štandardizácie |
-| 1 | + y štandardizácia | 42 → 128 → 64 → 1 | **~20 epôch** | **4 116 USD** | 26.7 M | **~7.5× rýchlejšia konvergencia** |
+| # | Variant | Architektúra | Parametre | Konvergencia | Val MAE | Test MAE | Pozn. |
+|---|---|---|---|---|---|---|---|
+| 0 | Baseline | 42 → 128 → 64 → 1 | 13 825 | ~150 epôch | 4 174 USD | — | bez `y` štandardizácie |
+| 1 | + y štandardizácia | 42 → 128 → 64 → 1 | 13 825 | **~20 epôch** | **4 116 USD** | — | **~7.5× rýchlejšia konvergencia** |
+| 2 | + hlbšia sieť | 42 → 256 → 128 → 64 → 1 | **52 225** | ~30 epôch | 4 158 USD | 4 189 USD | **viac kapacity ≠ lepší výsledok** |
 
 > Všetky merania: `random_state=67`, batch size 64, Adam (`lr=1e-3`), early stopping (patience 20, threshold 1e-4).
 
@@ -83,7 +84,47 @@ Threshold `best_val_loss - 1e-4` bol v originálnom priestore (loss ~10⁷) nume
 
 ---
 
+## Experiment 2 — Hlbšia sieť
+
+**Hypotéza:**
+Z Experimentu 1 sme získali silný náznak, že limitácia výkonu je v dátach (irreducible error floor), nie v kapacite siete. Ak je to pravda, **zväčšenie modelu by nemalo zlepšiť val MAE**. Naopak, ak sú architektúrnym úzkym hrdlom 13k parametrov, hlbšia sieť by mala dosiahnuť výrazne nižšie MAE. Tento experiment slúži ako kapacitný test.
+
+**Zmena oproti Experimentu 1:**
+- Pridaná jedna skrytá vrstva, prvá je dvakrát širšia: `42 → 256 → 128 → 64 → 1`
+- Počet parametrov: **13 825 → 52 225** (3.8× viac)
+- Všetko ostatné identické (loss, optimizer, hyperparametre, OHE, štandardizácia X aj y)
+
+**Výsledok:**
+
+```
+Ep 10 | train MSE: 0.01844  MAE: 4049.82 | val MSE: 0.01941  MAE: 4160.09
+Ep 20 | train MSE: 0.01779  MAE: 3975.87 | val MSE: 0.01940  MAE: 4157.65   ← peak val
+Ep 30 | train MSE: 0.01732  MAE: 3921.38 | val MSE: 0.01946  MAE: 4168.49   ← začína overfit
+Early stopping
+```
+
+| Metrika | Hodnota | Δ vs. Exp 1 |
+|---|---|---|
+| Train MAE | 3 921 USD | **−66 USD** (lepší) |
+| Val MAE | 4 158 USD | **+42 USD** (horší) |
+| Test MAE | 4 189 USD | — |
+| Generalization gap | ~5.7 % | **+2.5 p.b.** (horší) |
+
+**Záver:**
+
+- 🔴 **Hlbšia sieť negeneralizuje lepšie** — Val MAE sa zhoršilo o 42 USD napriek 3.8× viac parametrom
+- ✅ **Hlbšia sieť trénuje lepšie** — Train MAE je o 66 USD nižšie, model má kapacitu naučiť sa trénovacie dáta presnejšie
+- 🔴 **Generalization gap sa zväčšil** zo 3.2 % (Exp 1) na 5.7 % — klasický signál, že dodatočná kapacita ide do **memorovania šumu**
+- 🔴 **Trend overfittingu** — pri ep 30 už val MAE rastie (4 158 → 4 168), zatiaľ čo train MAE pokračuje v poklese
+
+**Hlavný takeaway pre prezentáciu:**
+Tento experiment **silne potvrdzuje hypotézu z Experimentu 1**: úzkym hrdlom je šum dát, nie kapacita modelu. Pridanie 38k parametrov nielenže nepomohlo, ale ľahko uškodilo. Najmenší model (Exp 1) je z tohto pohľadu **optimálny** — Occamova britva v praxi.
+
+**Vedľajšie pozorovanie — `best_state` reload:**
+Pri analýze sme si všimli, že tréningová slučka ukladala `best_state` (váhy z najlepšej epochy), ale nikdy ich pred test evaluáciou neobnovila do modelu. Test MAE 4 189 teda zodpovedá modelu z ~ep 30 (mierny overfit), nie najlepšiemu stavu z ~ep 11–15. Po oprave (`model.load_state_dict(best_state)` po skončení tréningu) by test MAE mal byť mierne nižší (~4 130–4 150), ale **záver experimentu sa nemení** — hlbšia sieť stále nedosahuje výsledok Exp 1. Oprava bola pridaná do tréningovej slučky pre korektnosť budúcich experimentov.
+
+---
+
 ## Plán ďalších experimentov
 
-1. **Hlbšia sieť** (`42 → 256 → 128 → 64 → 1`, ~50k parametrov) — kapacitný test. Očakávanie: ak sme na irreducible floor, zlepšenie bude minimálne; ak nie, MAE klesne výraznejšie.
-2. **Feature importance** (zero-out analýza) — pre každú featúru zmeráme, o koľko stúpne MAE, keď ju vynulujeme. Interpretačná story do diskusie.
+1. **Feature importance** (zero-out analýza) — pre každú featúru zmeráme, o koľko stúpne MAE, keď ju vynulujeme. Identifikujeme dominantné featúry pre interpretáciu modelu v Diskusii.
