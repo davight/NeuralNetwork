@@ -142,6 +142,18 @@ Train MAE 3 990 vs Val MAE 4 174 → rozdiel **~4.6 %**. Model **negeneralizuje 
 **Smery, ktoré ešte ideme skúšať:**
 - Feature importance (zero-out analýza) — interpretácia, ktoré featúry sú dominantné
 
+### Záver
+
+**Projekt je úspešný v tom najdôležitejšom zmysle.** Model dosiahol val MAE **4 116 USD** (2.9 % priemerného platu, 86 % zlepšenie nad naivným baseline), ale za týmto číslom stojí dôležitejšia metodologická story: **tri cielené experimenty s falsifikovateľnými hypotézami diagnostikovali, prečo sa nedá ísť výrazne ďalej.**
+
+- **Exp 1 (štandardizácia `y`)** zrýchlila konvergenciu 7.5×, ale val MAE nezlepšila → **optimalizácia nebola úzkym hrdlom**.
+- **Exp 2 (hlbšia sieť, 3.8× viac parametrov)** val MAE dokonca zhoršila → **ani kapacita modelu nebola úzkym hrdlom**.
+- Záver oboch experimentov je konzistentný: úzkym hrdlom je **šum v dátach** (irreducible error floor).
+
+**Realistická interpretácia:** dataset je takmer určite syntetický (rovnomerné kategórie, žiadne missing values, čisté rozsahy). 2.9 % MAE preto **neznamená**, že tento model je nasaditeľný na reálnu predikciu platov, kde by MAE bolo skôr 10–20 % kvôli skrytým faktorom (firma, manažér, vyjednávacia pozícia, benefity). Výsledok demonštruje **schopnosť modelu naučiť sa funkciu skrytú v čistých dátach**, nie produktový prediktor.
+
+**Hlavná správa:** najmenší model (Exp 1) je z týchto troch variantov **optimálny** — pridanie kapacity by len znamenalo memorovanie šumu. Occamova britva v praxi.
+
 ---
 
 ## Štruktúra projektu
