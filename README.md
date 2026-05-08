@@ -76,34 +76,34 @@ Input (42) → Linear(128) → ReLU → Linear(64) → ReLU → Linear(1)
 
 ---
 
-## 4. Evaluácia a interpretácia (baseline pred zmenou architektúry)
+## 4. Evaluácia a interpretácia (baseline)
 
-> *Snapshot po ~70 epochách. Trénovanie ešte beží, finálne čísla po dobehnutí (alebo early stopping) budú mierne lepšie.*
+> *Konvergovaný stav baseline modelu (Exp 0) — ukončený early stoppingom pri ~150 epochách. Porovnanie s ďalšími variantmi je v sekcii 5.*
 
 | Metrika | Train | Val |
 |---|---|---|
-| MSE | 25 686 635 | 27 766 961 |
-| MAE | **4 042 USD** | **4 212 USD** |
-| RMSE (= √MSE) | ~5 068 USD | ~5 269 USD |
+| MSE | ~25.0 M | ~27.3 M |
+| MAE | **3 990 USD** | **4 174 USD** |
+| RMSE (= √MSE) | ~4 999 USD | ~5 230 USD |
 
 ### Porovnanie s naivným baseline („predpovedaj vždy priemer")
 
-| | Baseline | Náš model | Zlepšenie |
+| | Naivný baseline | Náš model | Zlepšenie |
 |---|---|---|---|
-| MAE | ~30 000 USD | 4 212 USD | **86 %** |
-| MSE | ~1.4 mld | 27.8M | **98 %** |
+| MAE | ~30 000 USD | 4 174 USD | **86 %** |
+| MSE | ~1.4 mld | 27.3 M | **98 %** |
 
 ### Sanity-check rozloženia chýb
 
-`RMSE / MAE = 5 269 / 4 212 ≈ **1.25**` → presne to, čo predpovedá teória pre normálne rozdelené reziduály (1.2533). Žiadne extrémne outliers, distribúcia chýb je „zdravá".
+`RMSE / MAE = 5 230 / 4 174 ≈ **1.25**` → presne to, čo predpovedá teória pre normálne rozdelené reziduály (1.2533). Žiadne extrémne outliers, distribúcia chýb je „zdravá".
 
 ### Generalization gap
 
-Train MAE 4 042 vs Val MAE 4 212 → rozdiel **~4 %**. Model **negeneralizuje zle** — pri 13k parametroch a 175k vzorkách žiadny náznak pretrénovania.
+Train MAE 3 990 vs Val MAE 4 174 → rozdiel **~4.6 %**. Model **negeneralizuje zle** — pri 13k parametroch a 175k vzorkách žiadny náznak pretrénovania.
 
 ### Relatívna chyba
 
-`4 212 / 145 718 ≈ **2.9 %** priemerného platu`.
+`4 174 / 145 718 ≈ **2.9 %** priemerného platu`.
 
 ### Vizualizácie v notebooku
 
@@ -127,15 +127,19 @@ Train MAE 4 042 vs Val MAE 4 212 → rozdiel **~4 %**. Model **negeneralizuje zl
 
 **Vyskúšané experimenty:** detailný záznam v [EXPERIMENTS.md](EXPERIMENTS.md). Stručne:
 
-| # | Variant | Konvergencia | Val MAE |
-|---|---|---|---|
-| 0 | Baseline | ~150 epôch | 4 174 USD |
-| 1 | + štandardizácia `y` | **~20 epôch** | 4 116 USD |
+| # | Variant | Parametre | Konvergencia | Val MAE | Pozn. |
+|---|---|---|---|---|---|
+| 0 | Baseline | 13 825 | ~150 epôch | 4 174 USD | bez `y` štandardizácie |
+| 1 | + štandardizácia `y` | 13 825 | **~20 epôch** | **4 116 USD** | ~7.5× rýchlejšia konvergencia |
+| 2 | + hlbšia sieť | 52 225 | ~30 epôch | 4 158 USD | viac kapacity ≠ lepší výsledok |
 
-Štandardizácia targetu **~7.5× zrýchlila konvergenciu** pri rovnakej finálnej kvalite — silné nepriame potvrdenie, že baseline bola limitovaná **šumom dát, nie optimalizáciou**.
+**Hlavné zistenia:**
+
+1. **Štandardizácia targetu nezlepšila MAE, ale ~7.5× zrýchlila konvergenciu** (Exp 1) — gradient pri targete v ráde 10⁵ má obrovskú škálu, štandardizácia ho dáva do rádu 1.
+2. **Hlbšia sieť so 3.8× viac parametrami val MAE zhoršila** (Exp 2) — Train MAE klesol (3 987 → 3 921) ale Val MAE stúpol (4 116 → 4 158). Generalization gap sa zdvojnásobil (3.2 % → 5.7 %), čo je signál začínajúceho overfittingu.
+3. **Spojený záver:** úzkym hrdlom modelu **nie je kapacita ani optimalizácia**, ale **šum dát**. Sme blízko irreducible error floor — pridať parametre znamená iba memorovať šum, nie zlepšovať generalizáciu.
 
 **Smery, ktoré ešte ideme skúšať:**
-- Hlbšia/širšia sieť (`42 → 256 → 128 → 64 → 1`) — kapacitný test
 - Feature importance (zero-out analýza) — interpretácia, ktoré featúry sú dominantné
 
 ---
