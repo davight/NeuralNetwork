@@ -78,7 +78,9 @@ Input (42) → Linear(128) → ReLU → Linear(64) → ReLU → Linear(1)
 
 ## 4. Evaluácia a interpretácia (baseline)
 
-> *Konvergovaný stav baseline modelu (Exp 0) — ukončený early stoppingom pri ~150 epochách. Porovnanie s ďalšími variantmi je v sekcii 5.*
+![Krivky trénovania baseline modelu](imgs/vyhodnotenie_trenovania.png)
+
+> *Konvergovaný stav baseline modelu (Exp 0) — ukončený early stoppingom pri ~150 epochách. Porovnanie s ďalšími variantmi je v sekcii 6.*
 
 | Metrika | Train | Val |
 |---|---|---|
@@ -105,15 +107,44 @@ Train MAE 3 990 vs Val MAE 4 174 → rozdiel **~4.6 %**. Model **negeneralizuje 
 
 `4 174 / 145 718 ≈ **2.9 %** priemerného platu`.
 
-### Vizualizácie v notebooku
+### Vizualizácie
 
-- Krivky train/val MSE a MAE počas trénovania (kontrola konvergencie)
-- Scatter plot predikcia vs. skutočnosť (body blízko diagonály = dobrá predikcia)
-- Histogram reziduálov (symetrický okolo nuly = nezaujatý model)
+![Scatter plot predikcie vs. skutočnosti a histogram reziduálov](imgs/vyhodnotenie.png)
+
+- **Scatter plot** predikcia vs. skutočnosť — body blízko diagonály = dobrá predikcia
+- **Histogram reziduálov** — symetrický okolo nuly = nezaujatý model
 
 ---
 
-## 5. Diskusia
+## 5. Feature importance (zero-out analýza)
+
+Pre každú vstupnú featúru sme zmerali, **o koľko stúpne test MAE**, keď ju vynulujeme v štandardizovanom priestore (`x = 0` ≈ priemer z train). Väčší nárast MAE = dôležitejšia featúra. Baseline test MAE = **4 091 USD**.
+
+| # | Featúra | Δ MAE [USD] |
+|---|---|---|
+| 1 | `experience_years` | **+10 574** |
+| 2 | `company_size_Startup` | +9 084 |
+| 3 | `company_size_Small` | +7 133 |
+| 4 | `job_title_Data Analyst` | +5 029 |
+| 5 | `company_size_Medium` | +5 005 |
+| 6 | `location_India` | +4 753 |
+| 7 | `job_title_Business Analyst` | +4 609 |
+| 8 | `location_USA` | +4 333 |
+| 9 | `education_level_PhD` | +3 733 |
+| 10 | `job_title_Frontend Developer` | +3 457 |
+
+![Top 10 najdôležitejších featúr](imgs/top10features.png)
+
+**Pozorovania:**
+
+- **`experience_years` je dominantný** — jediný numerický feature, ktorý zďaleka prekonáva všetky OHE stĺpce. Vynulovať ho znamená stratiť ~10.6k USD presnosti, čo je 2.6× baseline MAE.
+- **`company_size` je druhý najsilnejší signál** — tri z piatich top featúr sú dummies pre veľkosť firmy (Startup, Small, Medium; `Large` je referenčná kategória po `drop_first=True`). Štruktúra firmy nesie veľa platovej informácie.
+- **Lokalita a job title** sú v top 10 zastúpené selektívne — model identifikoval konkrétne kombinácie (India, USA; Data Analyst, Business Analyst, Frontend Developer), ktoré sa platovo výrazne odchyľujú od priemeru.
+- **`skills_count` a `certifications` v top 10 chýbajú** — model im pripisuje len malý vplyv, čo je konzistentné s tým, že v syntetickom datasete pravdepodobne nemajú silnú signálovú zložku.
+
+---
+
+## 6. Diskusia
 
 **Čo funguje:**
 - Model sa demonštrovateľne naučil úlohu (98 % redukcia MSE oproti baseline).
@@ -138,9 +169,6 @@ Train MAE 3 990 vs Val MAE 4 174 → rozdiel **~4.6 %**. Model **negeneralizuje 
 1. **Štandardizácia targetu nezlepšila MAE, ale ~7.5× zrýchlila konvergenciu** (Exp 1) — gradient pri targete v ráde 10⁵ má obrovskú škálu, štandardizácia ho dáva do rádu 1.
 2. **Hlbšia sieť so 3.8× viac parametrami val MAE zhoršila** (Exp 2) — Train MAE klesol (3 987 → 3 921) ale Val MAE stúpol (4 116 → 4 158). Generalization gap sa zdvojnásobil (3.2 % → 5.7 %), čo je signál začínajúceho overfittingu.
 3. **Spojený záver:** úzkym hrdlom modelu **nie je kapacita ani optimalizácia**, ale **šum dát**. Sme blízko irreducible error floor — pridať parametre znamená iba memorovať šum, nie zlepšovať generalizáciu.
-
-**Smery, ktoré ešte ideme skúšať:**
-- Feature importance (zero-out analýza) — interpretácia, ktoré featúry sú dominantné
 
 ### Záver
 
