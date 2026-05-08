@@ -125,11 +125,18 @@ Train MAE 4 042 vs Val MAE 4 212 → rozdiel **~4 %**. Model **negeneralizuje zl
 - V reálnom svete by bola predikcia platov výrazne ťažšia (typicky 10–20 % MAE) kvôli skrytým faktorom (firma, manažér, vyjednávanie, benefity).
 - Model neuvažuje **interakcie medzi featúrami** explicitne — feed-forward sieť ich vie aproximovať, ale nie tak efektívne ako napr. gradient boosting alebo wide-and-deep architektúry.
 
-**Smery, ktoré ideme skúšať:**
-- Hlbšia/širšia sieť (napr. `42 → 256 → 128 → 64 → 1`)
-- Dropout 0.1–0.3 pre prípad, že hlbší model začne overfittovať
-- Štandardizácia targetu (`y`) pre numerickú stabilitu gradientov
-- Iný optimizer (SGD s momentom, AdamW) pre porovnanie konvergencie
+**Vyskúšané experimenty:** detailný záznam v [EXPERIMENTS.md](EXPERIMENTS.md). Stručne:
+
+| # | Variant | Konvergencia | Val MAE |
+|---|---|---|---|
+| 0 | Baseline | ~150 epôch | 4 174 USD |
+| 1 | + štandardizácia `y` | **~20 epôch** | 4 116 USD |
+
+Štandardizácia targetu **~7.5× zrýchlila konvergenciu** pri rovnakej finálnej kvalite — silné nepriame potvrdenie, že baseline bola limitovaná **šumom dát, nie optimalizáciou**.
+
+**Smery, ktoré ešte ideme skúšať:**
+- Hlbšia/širšia sieť (`42 → 256 → 128 → 64 → 1`) — kapacitný test
+- Feature importance (zero-out analýza) — interpretácia, ktoré featúry sú dominantné
 
 ---
 
